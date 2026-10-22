@@ -44,6 +44,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem _petCharacterBot;
     private readonly ToolStripMenuItem _startupItem;
     private readonly ToolStripMenuItem _checkUpdatesItem;
+    private readonly ToolStripMenuItem _mobileAccessItem;
+    private MobileAccessForm? _mobileAccessForm;
 
     // Right-click-the-pet context menu (separate ToolStrip items — an item can't
     // live in two menus at once).
@@ -172,6 +174,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _startupItem.Checked = LaunchAtStartup.IsEnabled;
         _startupItem.CheckOnClick = false;
         _checkUpdatesItem = CreateMenuItem("", (_, _) => OnCheckUpdatesClicked());
+        _mobileAccessItem = CreateMenuItem("", (_, _) => OpenMobileAccess());
         _starItem = CreateMenuItem("", (_, _) => OpenInBrowser(Constants.GitHubUrl));
         _quitItem = CreateMenuItem("", (_, _) => Quit());
 
@@ -194,6 +197,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _menu.Items.Add(_petItem);
         _menu.Items.Add(_petSizeItem);
         _menu.Items.Add(_petCharacterItem);
+        _menu.Items.Add(_mobileAccessItem);
         _menu.Items.Add(CreateSeparator());
         _menu.Items.Add(_startupItem);
         _menu.Items.Add(_checkUpdatesItem);
@@ -280,6 +284,21 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 RefreshSummary();
             }));
         }
+    }
+
+    private void OpenMobileAccess()
+    {
+        if (_mobileAccessForm is { IsDisposed: false })
+        {
+            _mobileAccessForm.Activate();
+            return;
+        }
+        _mobileAccessForm = new MobileAccessForm(
+            new MobileGatewayClient(() => _server.BaseUrl),
+            NativeLocalization.ResolveLocale(_localePreference),
+            _strings.FontFamily);
+        _mobileAccessForm.FormClosed += (_, _) => _mobileAccessForm = null;
+        _mobileAccessForm.Show();
     }
 
     private void UpdateLimitsPolling() => _poller.IncludeLimits = _petWindow?.IsVisible == true || _quotaWindow?.Enabled == true;
@@ -387,6 +406,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         UpdatePetSizeChecks();
         UpdatePetCharacterChecks();
         _startupItem.Text = _strings.LaunchAtLogin;
+        _mobileAccessItem.Text = MobileAccessStrings.For(NativeLocalization.ResolveLocale(_localePreference)).MenuItem;
         _starItem.Text = _strings.StarOnGitHub;
         _quitItem.Text = _strings.Quit;
         RefreshUpdateMenuItem();

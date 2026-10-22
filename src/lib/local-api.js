@@ -1662,6 +1662,12 @@ function createLocalApiHandler({ queuePath, serverVersion = null, trackerDataDir
       }
       return true;
     }
+    // Companion-phone gateway admin (enable / pair / revoke). Loopback + local-auth only.
+    if (p === "/api/mobile-gateway") {
+      if (!isAuthorizedLocalMutation(req)) { json(res, { code: "unauthorized" }, 401); return true; }
+      await require("./mobile-gateway").handleMobileGatewayAdmin(req, res, readJsonBody);
+      return true;
+    }
     if (p.startsWith("/functions/tokentracker-usage-") && url.searchParams.get("device_id")?.startsWith("local:")) {
       try { await localUsage.view([], url.searchParams.get("device_id")); }
       catch (error) { json(res, { code: error.code || "transfer_failed" }, error.status || 500); return true; }

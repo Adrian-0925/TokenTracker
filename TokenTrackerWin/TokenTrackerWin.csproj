@@ -35,6 +35,8 @@
   <ItemGroup>
     <!-- Floating 1.0.* so restore picks the latest Evergreen-compatible runtime loader. -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.*" />
+    <!-- Phone pairing QR code (MobileAccessForm). -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -259,6 +259,13 @@ async function cmdServe(argv) {
       process.stdout.write(`Background local sync warning: ${e?.message || e}\n`),
   });
 
+  // Read-only Tailscale listener for the companion iPhone app. Disabled until
+  // the user turns it on; see src/lib/mobile-gateway.js.
+  const { createMobileGateway, setActiveMobileGateway } = require("../lib/mobile-gateway");
+  const mobileGateway = createMobileGateway({ trackerDir, localBaseUrl: getLocalServerUrl(port) });
+  setActiveMobileGateway(mobileGateway);
+  mobileGateway.start();
+
   // Anonymous daily heartbeat (see src/lib/telemetry.js for the privacy
   // contract). Fire-and-forget at startup, then re-checked every 6 hours so
   // long-lived embedded-app servers still count on later days; the shared
@@ -281,6 +288,7 @@ async function cmdServe(argv) {
   const shutdown = () => {
     process.stdout.write("\nShutting down...\n");
     nativeBackgroundSync?.stop();
+    void mobileGateway.stop();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000);
   };
