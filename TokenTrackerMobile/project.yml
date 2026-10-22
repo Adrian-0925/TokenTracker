@@ -1,0 +1,83 @@
+name: TokenTrackerMobile
+options:
+  bundleIdPrefix: com.adrian0925.tokentracker
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # The IPA ships unsigned (ad-hoc entitlements only); the user re-signs it
+    # with a free Apple ID in Sideloadly. See .github/workflows/ios-ipa.yml.
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGN_IDENTITY: ""
+
+targets:
+  TokenTrackerMobile:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Shared
+    dependencies:
+      - target: TokenTrackerMobileWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.adrian0925.tokentracker.mobile
+        PRODUCT_NAME: TokenTracker
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: TokenTracker
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSCameraUsageDescription: 用于扫描 Windows 端"手机访问"窗口里的配对二维码。
+        # The gateway is plain HTTP inside the Tailscale tunnel (WireGuard-encrypted).
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    entitlements:
+      path: App/TokenTrackerMobile.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.adrian0925.tokentracker
+
+  TokenTrackerMobileWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.adrian0925.tokentracker.mobile.widget
+        PRODUCT_NAME: TokenTrackerMobileWidget
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@executable_path/../../Frameworks"
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: TokenTracker
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    entitlements:
+      path: Widget/TokenTrackerMobileWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.adrian0925.tokentracker

@@ -1,0 +1,83 @@
+name: iOS IPA (unsigned)
+
+# Builds the companion iPhone app (TokenTrackerMobile/) into an unsigned IPA
+# for sideloading with a free Apple ID (Sideloadly). Entitlements are embedded
+# with an ad-hoc signature so the re-signer can see which ones the app wants.
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths:
+      - "TokenTrackerMobile/**"
+      - ".github/workflows/ios-ipa.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: TokenTrackerMobile
+        run: xcodegen generate
+
+      - name: Build (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -version
+          xcodebuild \
+            -project TokenTrackerMobile/TokenTrackerMobile.xcodeproj \
+            -scheme TokenTrackerMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log
+
+      # Surface compiler errors as annotations so they are readable from the
+      # run summary (and the public check-run API) without downloading logs.
+      - name: Report build errors
+        if: failure()
+        run: |
+          if [ -f build.log ]; then
+            grep -E "(error|fatal error):" build.log | sort -u | head -40 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+          fi
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          APP="build/Build/Products/Release-iphoneos/TokenTracker.app"
+          APPEX="$APP/PlugIns/TokenTrackerMobileWidget.appex"
+          test -d "$APP"
+          test -d "$APPEX"
+          codesign --force --sign - --entitlements TokenTrackerMobile/Widget/TokenTrackerMobileWidget.entitlements "$APPEX"
+          codesign --force --sign - --entitlements TokenTrackerMobile/App/TokenTrackerMobile.entitlements "$APP"
+          codesign -d --entitlements - "$APP" || true
+          rm -rf Payload && mkdir Payload
+          cp -R "$APP" Payload/
+          SHORT_SHA="${GITHUB_SHA::7}"
+          zip -qry "TokenTrackerMobile-${SHORT_SHA}.ipa" Payload
+          ls -la *.ipa
+          echo "IPA_NAME=TokenTrackerMobile-${SHORT_SHA}" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.IPA_NAME }}
+          path: ${{ env.IPA_NAME }}.ipa
+          if-no-files-found: error
+          retention-days: 30
